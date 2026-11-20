@@ -6,6 +6,7 @@ const maxSignalBytes = 32 * 1024;
 const requestLimit = 40 * 1024;
 const maxInvites = 300;
 const limitWindow = 60 * 1000;
+const maxInviteLifetime = 15 * limitWindow;
 
 class SignalError extends Error {
   constructor(status, message) {
@@ -26,9 +27,6 @@ export class SignalMailbox {
       this.#windowEnds = now + limitWindow;
       this.#transactions = 0;
       this.#clients.clear();
-      for (const [code, invite] of this.#invites) {
-        if (invite.expires <= now) this.#invites.delete(code);
-      }
     }
 
     const { action, owner, guest } = body ?? {};
@@ -49,7 +47,9 @@ export class SignalMailbox {
         code = Array.from(randomBytes(6), byte => codeAlphabet[byte % codeAlphabet.length]).join('');
       } while (this.#invites.has(code));
       const key = randomUUID();
-      this.#invites.set(code, { offer: body.offer, owner: key, expires: offer.expires });
+      const expires = Math.min(offer.expires, now + maxInviteLifetime);
+      const timer = setTimeout(() => this.#invites.delete(code), expires - now).unref();
+      this.#invites.set(code, { offer: body.offer, owner: key, expires, timer });
       return { code, owner: key };
     }
 
@@ -76,6 +76,7 @@ export class SignalMailbox {
       case 'finish':
         if (owner !== invite.owner) throw new SignalError(403, 'This client did not create the invite.');
         if (action === 'finish') {
+          clearTimeout(invite.timer);
           this.#invites.delete(code);
           return {};
         }
