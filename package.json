@@ -9,7 +9,8 @@
     "start": "node server.mjs",
     "test": "node --test",
     "prerelay": "npm run build",
-    "relay": "node relay-server.mjs"
+    "relay": "node relay-server.mjs",
+    "debug": "npm run relay -- --debug"
   },
   "devDependencies": {
     "esbuild": "0.25.6"
