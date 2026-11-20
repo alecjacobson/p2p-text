@@ -6,6 +6,10 @@ export function shortCode(input) {
   return shortCodePattern.test(candidate) ? candidate : '';
 }
 
+export function isLoopbackHost(hostname) {
+  return ['localhost', '127.0.0.1', '[::1]'].includes(hostname);
+}
+
 export function relayEndpoint(value) {
   if (!value.trim()) return '';
   let url;
@@ -14,12 +18,25 @@ export function relayEndpoint(value) {
   } catch {
     throw new Error('Enter the full signaling endpoint URL.');
   }
-  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-  if ((url.protocol !== 'https:' && !(loopback && url.protocol === 'http:')) ||
+  if ((url.protocol !== 'https:' && !(isLoopbackHost(url.hostname) && url.protocol === 'http:')) ||
       url.username || url.password || url.hash || url.search) {
     throw new Error('The signaling endpoint requires HTTPS outside localhost.');
   }
   return url.href;
+}
+
+export function shareableJoinLink(endpoint, code) {
+  const url = new URL(endpoint);
+  if (url.protocol !== 'https:' || isLoopbackHost(url.hostname) || !url.pathname.endsWith('/api/signal')) {
+    return '';
+  }
+  const app = new URL('../', url);
+  app.hash = new URLSearchParams({ join: code }).toString();
+  return app.href;
+}
+
+export function inviteFromFragment(fragment) {
+  return shortCode(new URLSearchParams(fragment.slice(1)).get('join') ?? '');
 }
 
 export async function callRelay(endpoint, action, fields) {

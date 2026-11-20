@@ -43,11 +43,14 @@
           <button type="button" id="join-tab" aria-pressed="false">Join</button>
         </div>
         <p id="pair-hint">Generate a one-time code to share with a collaborator.</p>
+        <p class="relay-status" id="relay-status" hidden></p>
         <button type="button" class="primary wide" id="new-invite">Generate invite</button>
         <div id="pair-output" class="code-block" hidden>
           <label id="copy-label" for="outgoing-code">Your invite code</label>
           <textarea id="outgoing-code" rows="2" readonly></textarea>
           <button type="button" class="small wide" id="copy-code">Copy code</button>
+          <button type="button" class="small wide" id="copy-join-link" hidden>Copy join link</button>
+          <input type="url" id="join-link" aria-label="Join link" readonly hidden>
         </div>
         <form id="pair-input" class="code-block" hidden>
           <label id="incoming-label" for="incoming-code">Invite code</label>

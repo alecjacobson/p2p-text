@@ -108,6 +108,8 @@ select {
 .code-block textarea { width: 100%; resize: vertical; padding: 7px 8px; font: .875rem/1.45 var(--mono); overflow-wrap: anywhere; }
 .code-block textarea[readonly] { background: #f9f7fd; }
 .code-block textarea.short-code { font-size: 1.4rem; font-weight: 650; letter-spacing: .18em; resize: none; }
+.code-block input { min-width: 0; padding: 7px 8px; font: .875rem/1.45 var(--mono); }
+.card p.relay-status { margin-top: -5px; font-size: .875rem; overflow-wrap: anywhere; }
 .quiet { margin-top: 8px; background: transparent; border-color: transparent; padding-inline: 0; color: var(--accent-dark); }
 .card p.feedback { font-size: .875rem; margin: 10px 0 0; }
 .feedback:empty { display: none; }

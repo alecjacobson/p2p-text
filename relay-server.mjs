@@ -29,4 +29,5 @@ createServer({ requestTimeout: 10000 }, (request, response) => {
   response.writeHead(404).end();
 }).listen(port, values.host, () => {
   console.log(`Short Overleaf with six-character pairing is available at http://${values.host}:${port}`);
+  console.log('For another machine, open the same HTTPS relay URL on both devices.');
 });

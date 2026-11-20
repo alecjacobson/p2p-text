@@ -1,7 +1,7 @@
 import { TextReplica, remapOffset, validDocumentId, validOperations } from './crdt.js';
 import { carryUpdates, encodeCode, gather, makeOffer, readCode } from './peer.js';
 import { IdleBackup } from './backup.js';
-import { callRelay, relayEndpoint, shortCode } from './relay.js';
+import { callRelay, inviteFromFragment, isLoopbackHost, relayEndpoint, shareableJoinLink, shortCode } from './relay.js';
 
 const byId = id => document.getElementById(id);
 const editor = byId('editor');
@@ -209,6 +209,22 @@ function message(text, error = false) {
   element.classList.toggle('error', error);
 }
 
+function showRelayStatus() {
+  const status = byId('relay-status');
+  let endpoint;
+  try {
+    endpoint = relayEndpoint(relayField.value);
+  } catch {
+    endpoint = '';
+  }
+  status.hidden = !endpoint;
+  if (!endpoint) return;
+  const { host, hostname } = new URL(endpoint);
+  status.textContent = isLoopbackHost(hostname)
+    ? 'Local relay. For another machine, open the same shared HTTPS relay URL on both devices.'
+    : `Signaling relay ${host}`;
+}
+
 function renderPairing() {
   const invite = mode === 'invite';
   const signal = pending?.signal;
@@ -232,6 +248,13 @@ function renderPairing() {
   const output = byId('outgoing-code');
   output.value = relay?.code ?? (signal ? encodeCode(signal) : '');
   output.classList.toggle('short-code', Boolean(relay));
+  const sharedLink = invite && relay ? shareableJoinLink(relay.endpoint, relay.code) : '';
+  const linkField = byId('join-link');
+  if (linkField.value !== sharedLink) {
+    linkField.value = sharedLink;
+    linkField.hidden = true;
+  }
+  byId('copy-join-link').hidden = !sharedLink;
   byId('pair-hint').textContent = invite
     ? relay ? 'Share this six-character code privately.'
       : signal ? 'Send the invite privately. Paste your collaborator’s reply below.'
@@ -239,6 +262,7 @@ function renderPairing() {
       : 'Generate a one-time code to share with a collaborator.'
     : relay ? 'Waiting for the peer connection to open.'
       : signal ? 'Send this reply privately to finish connecting.' : 'Enter the invite your collaborator sent you.';
+  showRelayStatus();
   const count = [...links.values()].filter(link => link.open).length;
   byId('connection-badge').classList.toggle('online', count > 0);
   byId('connection-label').textContent = count ? `${count} ${count === 1 ? 'peer' : 'peers'} connected` : 'Working solo';
@@ -347,6 +371,19 @@ function finishRelay({ endpoint, code, owner }) {
   });
 }
 
+async function claimShortInvite(endpoint, code) {
+  try {
+    return await callRelay(endpoint, 'claim', { code });
+  } catch (error) {
+    if (error.status !== 404) throw error;
+    const { host, hostname } = new URL(endpoint);
+    if (isLoopbackHost(hostname)) {
+      throw new Error('No active invite on this local relay. If the invite came from another machine, open the inviter’s shared HTTPS relay link.');
+    }
+    throw new Error(`No active invite on ${host}. Open the inviter’s relay link or ask for a fresh code.`);
+  }
+}
+
 async function waitForReply(invitation) {
   const { connection, relay } = invitation;
   const { endpoint, code, owner } = relay;
@@ -440,7 +477,7 @@ byId('pair-input').addEventListener('submit', async event => {
         const endpoint = relayEndpoint(relayField.value);
         if (!endpoint) throw new Error('Set a signaling endpoint in Network settings to use a six-character code.');
         message('Looking up the invite…');
-        const result = await callRelay(endpoint, 'claim', { code });
+        const result = await claimShortInvite(endpoint, code);
         offer = result.offer;
         relay = { endpoint, code, guest: result.guest };
       }
@@ -459,6 +496,11 @@ byId('pair-input').addEventListener('submit', async event => {
       expireLink(joining, signal.expires - Date.now() + 30000, 'Pairing expired. Ask for a fresh invite.');
       if (relay) {
         await callRelay(relay.endpoint, 'answer', { code, guest: relay.guest, answer: encodeCode(reply) });
+        if (location.protocol === 'https:' && inviteFromFragment(location.hash) === code) {
+          const page = new URL(location.href);
+          page.hash = '';
+          history.replaceState(history.state, '', page);
+        }
         if (links.has(joining) && !links.get(joining).open) {
           expireLink(joining, 30000, 'Connection timed out. Try a fresh invite or configure TURN.');
           message('Connecting to your peer…');
@@ -487,6 +529,19 @@ byId('copy-code').addEventListener('click', async () => {
     copied = document.execCommand('copy');
   }
   message(copied ? 'Code copied.' : 'Code selected. Copy it with your keyboard.');
+});
+
+byId('copy-join-link').addEventListener('click', async () => {
+  const field = byId('join-link');
+  try {
+    await navigator.clipboard.writeText(field.value);
+    message('Join link copied.');
+  } catch {
+    field.hidden = false;
+    field.focus();
+    field.select();
+    message('Join link selected. Copy it with your keyboard.');
+  }
 });
 
 async function detectBackup() {
@@ -536,6 +591,11 @@ byId('backup-enabled').addEventListener('change', event => {
   showBackup();
 });
 
+const linkedInvite = inviteFromFragment(location.hash);
+if (linkedInvite) {
+  mode = 'join';
+  byId('incoming-code').value = linkedInvite;
+}
 switchDocument(validDocumentId(tabDoc) ? tabDoc : crypto.randomUUID());
 renderPairing();
 detectBackup();

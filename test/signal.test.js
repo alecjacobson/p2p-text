@@ -3,11 +3,31 @@ import { Readable } from 'node:stream';
 import { test } from 'node:test';
 import { SignalMailbox, signalHandler } from '../signal.mjs';
 import { encodeCode, makeOffer } from '../src/peer.js';
-import { shortCode } from '../src/relay.js';
+import { inviteFromFragment, shareableJoinLink, shortCode } from '../src/relay.js';
 
 const sender = '192.0.2.1';
 const receiver = '192.0.2.2';
 const makeInvite = () => makeOffer(crypto.randomUUID(), crypto.randomUUID(), 'v=0\r\n');
+
+test('an invite must be claimed on the same relay that issued it', () => {
+  const first = new SignalMailbox();
+  const second = new SignalMailbox();
+  const offer = encodeCode(makeInvite());
+  const { code } = first.process({ action: 'create', offer }, sender);
+  assert.throws(() => second.process({ action: 'claim', code }, receiver), { status: 404 });
+  assert.equal(first.process({ action: 'claim', code }, receiver).offer, offer);
+});
+
+test('a join link opens the issuing relay and carries the code in a fragment', () => {
+  const code = 'ABCD23';
+  const link = new URL(shareableJoinLink('https://relay.example.org/api/signal', code));
+  assert.equal(link.origin, 'https://relay.example.org');
+  assert.equal(link.pathname, '/');
+  assert.equal(link.search, '');
+  assert.equal(inviteFromFragment(link.hash), code);
+  assert.equal(inviteFromFragment('#join=invalid'), '');
+  assert.equal(shareableJoinLink('http://127.0.0.1:8787/api/signal', code), '');
+});
 
 test('a six-character invite hands off one offer and one reply', () => {
   const mailbox = new SignalMailbox();
