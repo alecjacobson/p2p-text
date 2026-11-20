@@ -44,7 +44,9 @@
         </div>
         <p id="pair-hint">Generate a one-time code to share with a collaborator.</p>
         <p class="relay-status" id="relay-status" hidden></p>
+        <p id="diagnostics-status" hidden>Connection diagnostics are enabled on this relay.</p>
         <button type="button" class="primary wide" id="new-invite">Generate invite</button>
+        <button type="button" class="small wide" id="test-invite" hidden>Start connection test</button>
         <div id="pair-output" class="code-block" hidden>
           <label id="copy-label" for="outgoing-code">Your invite code</label>
           <textarea id="outgoing-code" rows="2" readonly></textarea>

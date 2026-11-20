@@ -25,13 +25,15 @@ export function relayEndpoint(value) {
   return url.href;
 }
 
-export function shareableJoinLink(endpoint, code) {
+export function shareableJoinLink(endpoint, code, auto = false) {
   const url = new URL(endpoint);
   if (url.protocol !== 'https:' || isLoopbackHost(url.hostname) || !url.pathname.endsWith('/api/signal')) {
     return '';
   }
   const app = new URL('../', url);
-  app.hash = new URLSearchParams({ join: code }).toString();
+  const invite = new URLSearchParams({ join: code });
+  if (auto) invite.set('auto', '1');
+  app.hash = invite.toString();
   return app.href;
 }
 
