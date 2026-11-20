@@ -37,8 +37,12 @@ export function readCode(input, type) {
   return signal;
 }
 
-export function makeOffer(doc, peer, sdp) {
-  return { type: 'offer', doc, peer, sdp, invite: crypto.randomUUID(), expires: Date.now() + inviteLifetime };
+export function makeOffer(doc, peer, sdp, invite = crypto.randomUUID()) {
+  return { type: 'offer', doc, peer, sdp, invite, expires: Date.now() + inviteLifetime };
+}
+
+export function hasIceCandidates(sdp) {
+  return /(?:^|\n)a=candidate:/.test(sdp ?? '');
 }
 
 export async function gather(connection, type) {
@@ -61,8 +65,13 @@ export async function gather(connection, type) {
     });
   }
   const description = connection.localDescription;
-  if (!description?.sdp.includes('a=candidate:')) {
-    throw new Error('No ICE candidates were gathered. Check your network or ICE settings.');
+  // The offerer can learn the responder's address from an inbound ICE check
+  // even when the answer advertises no candidates.
+  const canDiscoverFromOffer = type === 'answer' && hasIceCandidates(connection.remoteDescription?.sdp);
+  if (!description?.sdp || (!hasIceCandidates(description.sdp) && !canDiscoverFromOffer)) {
+    const error = new Error('No ICE candidates were gathered. Check your network or ICE settings.');
+    error.code = 'no-ice-candidates';
+    throw error;
   }
   return description.sdp;
 }

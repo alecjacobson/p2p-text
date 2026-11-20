@@ -1,3 +1,4 @@
 node_modules/
 dist/
+.p2p-debug/
 .DS_Store

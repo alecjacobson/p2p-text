@@ -9,7 +9,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { branch, GitBackup } from '../git-backup.mjs';
 import { IdleBackup } from '../src/backup.js';
 import { remapOffset, TextReplica, validOperations } from '../src/crdt.js';
-import { carryUpdates, encodeCode, makeOffer, readCode } from '../src/peer.js';
+import { carryUpdates, encodeCode, gather, makeOffer, readCode } from '../src/peer.js';
 
 const run = promisify(execFile);
 const set = (replica, text, start) => replica.replace(replica.view().nodes, text, start);
@@ -60,6 +60,21 @@ test('invite codes round-trip and reject a mismatched type or expired invite', (
   assert.deepEqual(readCode(encodeCode(signal), 'offer'), signal);
   assert.throws(() => readCode(encodeCode(signal), 'answer'), /reply code/);
   assert.throws(() => readCode(encodeCode({ ...signal, expires: 1 }), 'offer'), /expired/);
+});
+
+test('a valid answer with zero candidates can use the offer’s candidates to continue ICE', async () => {
+  const sdp = 'v=0\r\na=ice-ufrag:test\r\na=ice-pwd:test-password\r\n';
+  const connection = {
+    iceGatheringState: 'complete',
+    remoteDescription: { sdp: 'v=0\r\na=candidate:test 1 udp 1 host.local 12345 typ host\r\n' },
+    createAnswer: async () => ({ type: 'answer', sdp }),
+    createOffer: async () => ({ type: 'offer', sdp }),
+    async setLocalDescription(description) { this.localDescription = description; }
+  };
+  assert.equal(await gather(connection, 'answer'), sdp);
+  await assert.rejects(() => gather(connection, 'offer'), { code: 'no-ice-candidates' });
+  connection.remoteDescription = { sdp };
+  await assert.rejects(() => gather(connection, 'answer'), { code: 'no-ice-candidates' });
 });
 
 test('data channel framing reassembles a snapshot larger than a single frame', () => {
