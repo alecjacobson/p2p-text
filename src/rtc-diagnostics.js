@@ -48,7 +48,6 @@ export function watchConnection(connection, report) {
 }
 
 export async function reportIceStats(connection, report) {
-  if (!report) return;
   try {
     const stats = await connection.getStats();
     const summary = {
@@ -76,8 +75,21 @@ export async function reportIceStats(connection, report) {
         summary.remote = stats.get(pair?.remoteCandidateId)?.candidateType;
       }
     }
-    report('stats', summary);
+    report?.('stats', summary);
+    return summary;
   } catch {
-    report('stats-unavailable');
+    report?.('stats-unavailable');
   }
+}
+
+export function connectionRoute(summary) {
+  if (!summary?.local || !summary.remote) return '';
+  return summary.local === 'relay' || summary.remote === 'relay' ? 'TURN' : 'direct';
+}
+
+export function connectionFailure(summary, reason = 'Connection failed.') {
+  if (summary && !summary.localHost && !summary.localRelay && !summary.pairs) {
+    return `${reason} No usable local ICE route was found. Check VPN settings, browser WebRTC policy, and local-network permissions. Configure TURN on both peers and create a fresh invite.`;
+  }
+  return `${reason} A VPN, firewall, or browser policy may block the available routes. Check local-network permissions or configure TURN on both peers, then create a fresh invite.`;
 }

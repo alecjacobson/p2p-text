@@ -53,7 +53,7 @@ Configure **TURN URL**, **TURN username**, and **TURN password** under **Network
 
 In the observed failure on 2026-11-20, the Mac advertised a VPN interface address. With the VPN disconnected, Firefox on both machines connected directly on Wi-Fi. Chrome on the guest also had the managed `WebRtcIPHandling=default_public_interface_only` policy, suppressing private-address candidates. Fresh profiles inherit system policies. Administrators can inspect `chrome://policy` and scope approved WebRTC policies to the application origin. [Chromium policy definition](https://chromium.googlesource.com/chromium/src/+/main/components/policy/resources/templates/policy_definitions/WebRtc/WebRtcIPHandling.yaml)
 
-A webpage cannot reliably identify a VPN or select a physical network interface. After changing networks, create a fresh invite so ICE gathers current candidates. Document text remains in browser storage after a connection fails. See the [live verification matrix](testing.md) for what has actually been tested.
+The connected UI shows whether ICE selected a direct or TURN route. Failed connections inspect ICE statistics even when server diagnostics are disabled and provide VPN, browser-policy, local-network-permission, and TURN recovery advice. A webpage cannot reliably identify a VPN or select a physical network interface. After changing networks, create a fresh invite so ICE gathers current candidates. Document text remains in browser storage after a connection fails. See the [live verification matrix](testing.md) for what has actually been tested.
 
 ## Prototype limits
 

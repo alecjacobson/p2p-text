@@ -3,7 +3,7 @@ import { Readable } from 'node:stream';
 import { test } from 'node:test';
 import { diagnosticHandler, sanitizeDiagnostic } from '../diagnostics.mjs';
 import { configuredTurn, createStations, newRun, newStationKeys, stationLinks } from '../debug-stations.mjs';
-import { browserFamily, descriptionCandidates, reportIceStats } from '../src/rtc-diagnostics.js';
+import { browserFamily, connectionFailure, connectionRoute, descriptionCandidates, reportIceStats } from '../src/rtc-diagnostics.js';
 import { shareableJoinLink } from '../src/relay.js';
 
 const tag = { role: 'invite', attempt: 'abcd1234', peer: 'ef015678' };
@@ -113,4 +113,38 @@ test('debug runs accept private TURN configuration in normal iceServers format',
   const turn = { urls: ['turns:relay.example.net:443?transport=tcp'], username: 'user', credential: 'test' };
   assert.deepEqual(configuredTurn({ iceServers: [{ urls: 'stun:stun.example.net' }, turn] }), [turn]);
   assert.throws(() => configuredTurn([{ urls: 'turn:relay.example.net' }]), /authenticated TURN/);
+});
+
+test('normal connections inspect ICE without enabling server diagnostics', async () => {
+  const stats = new Map([
+    ['local', { type: 'local-candidate', candidateType: 'host', address: '10.2.183.252' }],
+    ['pair', { type: 'candidate-pair', state: 'failed', requestsSent: 33, responsesReceived: 0 }]
+  ]);
+  const summary = await reportIceStats({ getStats: async () => stats });
+  assert.equal(summary.requests, 33);
+  assert.equal(summary.responses, 0);
+  assert.match(connectionFailure(summary), /VPN/);
+  assert.match(connectionFailure(summary), /browser policy/);
+  assert.ok(!JSON.stringify(summary).includes('10.2.183.252'));
+  assert.equal(connectionRoute(summary), '');
+});
+
+test('route labels depend on the selected ICE pair, including one-sided TURN', () => {
+  assert.equal(connectionRoute({ local: 'host', remote: 'host' }), 'direct');
+  assert.equal(connectionRoute({ local: 'srflx', remote: 'prflx' }), 'direct');
+  assert.equal(connectionRoute({ local: 'host', remote: 'relay' }), 'TURN');
+  assert.equal(connectionRoute({ local: 'relay', remote: 'host' }), 'TURN');
+  assert.equal(connectionRoute({ localRelay: 2, local: 'host', remote: 'srflx' }), 'direct');
+  assert.equal(connectionRoute(undefined), '');
+});
+
+test('missing candidates and unavailable stats provide bounded, honest recovery advice', async () => {
+  const message = connectionFailure({ localHost: 0, localRelay: 0, pairs: 0 });
+  assert.match(message, /No usable local ICE route/);
+  assert.match(message, /VPN settings/);
+  assert.match(message, /TURN on both peers/);
+  const summary = await reportIceStats({ getStats: async () => { throw new Error('closed'); } });
+  assert.equal(summary, undefined);
+  assert.match(connectionFailure(summary, 'Connection timed out.'), /^Connection timed out/);
+  assert.match(connectionFailure(summary), /may block/);
 });
