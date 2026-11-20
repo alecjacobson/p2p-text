@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A peer-to-peer collaborative text editor.">
+  <title>Short Overleaf</title>
+  <style>/* APP_STYLES */</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="frame topbar-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        Short Overleaf
+      </div>
+      <div class="connection-badge" id="connection-badge" role="status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="connection-label">Working solo</span>
+      </div>
+    </div>
+  </header>
+  <main class="frame workspace">
+    <section class="sheet" aria-labelledby="editor-title">
+      <div class="sheet-header">
+        <h1 id="editor-title">Editor</h1>
+        <div class="document-tools">
+          <select id="documents" aria-label="Open a saved document"></select>
+          <button class="small" type="button" id="new-document">New document</button>
+        </div>
+      </div>
+      <textarea id="editor" aria-labelledby="editor-title" placeholder="Start writing…" spellcheck="false"></textarea>
+      <div class="sheet-footer">
+        <span id="word-count">0 words</span>
+        <span id="local-status">Stored in this browser</span>
+      </div>
+    </section>
+    <aside class="sidebar" aria-label="Collaboration and backup">
+      <section class="card" aria-labelledby="pair-title">
+        <h2 id="pair-title">Connect a peer</h2>
+        <div class="mode-switch" role="group" aria-label="Pairing role">
+          <button type="button" id="invite-tab" aria-pressed="true">Invite</button>
+          <button type="button" id="join-tab" aria-pressed="false">Join</button>
+        </div>
+        <p id="pair-hint">Generate a one-time code to share with a collaborator.</p>
+        <button type="button" class="primary wide" id="new-invite">Generate invite</button>
+        <div id="pair-output" class="code-block" hidden>
+          <label id="copy-label" for="outgoing-code">Your invite code</label>
+          <textarea id="outgoing-code" rows="2" readonly></textarea>
+          <button type="button" class="small wide" id="copy-code">Copy code</button>
+        </div>
+        <form id="pair-input" class="code-block" hidden>
+          <label id="incoming-label" for="incoming-code">Invite code</label>
+          <textarea id="incoming-code" rows="2" required spellcheck="false" autocomplete="off" maxlength="135000" placeholder="Paste code here"></textarea>
+          <button type="submit" class="primary wide" id="apply-code">Connect peer</button>
+        </form>
+        <button type="button" class="quiet" id="cancel-pairing" hidden>Cancel pairing</button>
+        <p id="pair-message" class="feedback" role="status"></p>
+        <details>
+          <summary>Network settings</summary>
+          <div class="ice">
+            <label for="relay-url">Signaling endpoint</label>
+            <input id="relay-url" type="url" placeholder="https://example.org/api/signal" spellcheck="false" autocomplete="off">
+            <label for="stun-url">STUN URL</label>
+            <input id="stun-url" type="text" value="stun:stun.l.google.com:19302" spellcheck="false">
+            <label for="turn-url">TURN URL</label>
+            <input id="turn-url" type="text" placeholder="turn:relay.example.com:3478" spellcheck="false">
+            <label for="turn-user">TURN username</label>
+            <input id="turn-user" type="text" autocomplete="off" spellcheck="false">
+            <label for="turn-key">TURN password</label>
+            <input id="turn-key" type="password" autocomplete="off">
+          </div>
+        </details>
+      </section>
+      <section class="card" aria-labelledby="backup-title">
+        <h2 id="backup-title">Git backup</h2>
+        <p id="backup-hint">Start the app with a local Git checkout to enable automatic snapshots.</p>
+        <label class="checkbox" id="backup-toggle" hidden>
+          <input id="backup-enabled" type="checkbox">
+          Back up this document
+        </label>
+        <p id="backup-status" class="backup-status" role="status">Local helper required</p>
+      </section>
+    </aside>
+  </main>
+  <script type="module">/* APP_SCRIPT */</script>
+</body>
+</html>

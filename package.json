@@ -1,0 +1,17 @@
+{
+  "name": "short-overleaf",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "prestart": "npm run build",
+    "start": "node server.mjs",
+    "test": "node --test",
+    "prerelay": "npm run build",
+    "relay": "node relay-server.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.6"
+  }
+}
