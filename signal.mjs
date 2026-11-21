@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readCode } from './src/peer.js';
 import { codeAlphabet, shortCode } from './src/relay.js';
+import { diagnosticAttempt } from './src/rtc-diagnostics.js';
 
 const maxSignalBytes = 32 * 1024;
 const requestLimit = 40 * 1024;
@@ -20,6 +21,10 @@ export class SignalMailbox {
   #clients = new Map();
   #windowEnds = 0;
   #transactions = 0;
+
+  constructor(report) {
+    this.report = report;
+  }
 
   process(body, address) {
     const now = Date.now();
@@ -49,7 +54,9 @@ export class SignalMailbox {
       const key = randomUUID();
       const expires = Math.min(offer.expires, now + maxInviteLifetime);
       const timer = setTimeout(() => this.#invites.delete(code), expires - now).unref();
-      this.#invites.set(code, { offer: body.offer, owner: key, expires, timer });
+      const attempt = diagnosticAttempt(offer.invite);
+      this.#invites.set(code, { offer: body.offer, owner: key, expires, timer, attempt });
+      this.report?.({ source: 'relay', event: 'offer-stored', attempt });
       return { code, owner: key };
     }
 
@@ -61,6 +68,7 @@ export class SignalMailbox {
       case 'claim':
         if (invite.guest) throw new SignalError(409, 'This code has already been used. Ask for a new invite.');
         invite.guest = randomUUID();
+        this.report?.({ source: 'relay', event: 'offer-claimed', attempt: invite.attempt });
         return { offer: invite.offer, guest: invite.guest };
       case 'answer': {
         if (!invite.guest || guest !== invite.guest) throw new SignalError(403, 'This client did not claim the invite.');
@@ -70,6 +78,7 @@ export class SignalMailbox {
         if (offer.doc !== answer.doc || offer.invite !== answer.invite || offer.expires !== answer.expires ||
             offer.peer === answer.peer) throw new SignalError(400, 'This reply does not match the invite.');
         invite.answer = body.answer;
+        this.report?.({ source: 'relay', event: 'answer-stored', attempt: invite.attempt });
         return {};
       }
       case 'poll':
@@ -78,6 +87,7 @@ export class SignalMailbox {
         if (action === 'finish') {
           clearTimeout(invite.timer);
           this.#invites.delete(code);
+          this.report?.({ source: 'relay', event: 'invite-finished', attempt: invite.attempt });
           return {};
         }
         return { answer: invite.answer ?? null };
