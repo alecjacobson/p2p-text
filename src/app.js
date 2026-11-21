@@ -2,7 +2,7 @@ import { TextReplica, remapOffset, validDocumentId, validOperations } from './cr
 import { carryUpdates, encodeCode, gather, hasIceCandidates, makeOffer, readCode } from './peer.js';
 import { IdleBackup } from './backup.js';
 import { callRelay, inviteFromFragment, isLoopbackHost, relayEndpoint, shareableJoinLink, shortCode } from './relay.js';
-import { browserFamily, descriptionCandidates, diagnosticAttempt, reportIceStats, watchConnection } from './rtc-diagnostics.js';
+import { browserFamily, connectionFailure, connectionRoute, descriptionCandidates, diagnosticAttempt, reportIceStats, watchConnection } from './rtc-diagnostics.js';
 import { runDebugStation } from './debug-station.js';
 
 const byId = id => document.getElementById(id);
@@ -274,6 +274,9 @@ function renderPairing() {
   const count = [...links.values()].filter(link => link.open).length;
   byId('connection-badge').classList.toggle('online', count > 0);
   byId('connection-label').textContent = count ? `${count} ${count === 1 ? 'peer' : 'peers'} connected` : 'Working solo';
+  const routes = [...new Set([...links.values()].filter(link => link.open).map(link => link.route).filter(Boolean))];
+  byId('network-status').hidden = !routes.length;
+  byId('network-status').textContent = routes.length ? `WebRTC route through ${routes.join(' and ')} connections.` : '';
 }
 
 function cancelPairing() {
@@ -321,13 +324,11 @@ async function closeFailedLink(connection, reason) {
   if (!link || link.closing) return;
   link.closing = true;
   clearTimeout(link.timer);
-  if (link.report) {
-    await Promise.race([
-      reportIceStats(connection, link.report),
-      new Promise(resolve => setTimeout(resolve, 350))
-    ]);
-  }
-  closeLink(connection, reason);
+  const summary = await Promise.race([
+    reportIceStats(connection, link.report),
+    new Promise(resolve => setTimeout(resolve, 350))
+  ]);
+  if (links.get(connection) === link) closeLink(connection, connectionFailure(summary, reason));
 }
 
 function peerReporter(role, invite) {
@@ -397,7 +398,11 @@ function createLink(documentId, report) {
       link.open = true;
       clearTimeout(link.timer);
       report?.('channel-open');
-      void reportIceStats(connection, report);
+      void reportIceStats(connection, report).then(summary => {
+        if (links.get(connection) !== link) return;
+        link.route = connectionRoute(summary);
+        renderPairing();
+      });
       if (pending?.connection === connection) {
         pending = undefined;
         byId('incoming-code').value = '';
@@ -417,7 +422,7 @@ function createLink(documentId, report) {
   connection.addEventListener('datachannel', event => attach(event.channel));
   connection.addEventListener('connectionstatechange', () => {
     if (connection.connectionState === 'failed') {
-      void closeFailedLink(connection, 'Connection failed. Create a fresh invite or configure TURN.');
+      void closeFailedLink(connection, 'Connection failed.');
     }
   });
   return { connection, attach };
@@ -434,7 +439,7 @@ async function acceptReply(invitation, answer) {
   invitation.used = true;
   if (links.has(invitation.connection) && !links.get(invitation.connection).open) {
     expireLink(invitation.connection, hasIceCandidates(answer.sdp) ? 30000 : 45000,
-      'Connection timed out. Try a fresh invite or configure TURN.');
+      'Connection timed out.');
     message('Connecting to your peer…');
   }
 }
@@ -485,6 +490,13 @@ async function waitForReply(invitation) {
   }
   if (pending === invitation) link.poll = setTimeout(() => waitForReply(invitation), 1500);
 }
+
+
+function networkChanged() {
+  if (links.size || pending) message('Network changed. If syncing stops, create a fresh invite to gather current routes. VPN and browser policies can affect direct connections.');
+}
+window.addEventListener('online', networkChanged);
+navigator.connection?.addEventListener('change', networkChanged);
 
 relayField.addEventListener('input', renderPairing);
 byId('incoming-code').addEventListener('input', renderPairing);
@@ -594,7 +606,7 @@ byId('pair-input').addEventListener('submit', async event => {
         }
         if (links.has(joining) && !links.get(joining).open) {
           expireLink(joining, hasIceCandidates(sdp) ? 30000 : 45000,
-            'Connection timed out. Try a fresh invite or configure TURN.');
+            'Connection timed out.');
           message('Connecting to your peer…');
         }
       } else {

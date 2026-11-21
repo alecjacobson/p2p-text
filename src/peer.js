@@ -69,7 +69,7 @@ export async function gather(connection, type) {
   // even when the answer advertises no candidates.
   const canDiscoverFromOffer = type === 'answer' && hasIceCandidates(connection.remoteDescription?.sdp);
   if (!description?.sdp || (!hasIceCandidates(description.sdp) && !canDiscoverFromOffer)) {
-    const error = new Error('No ICE candidates were gathered. Check your network or ICE settings.');
+    const error = new Error('No ICE candidates were gathered. Check VPN settings, browser WebRTC policy, and local-network permissions, or configure TURN on both peers.');
     error.code = 'no-ice-candidates';
     throw error;
   }
