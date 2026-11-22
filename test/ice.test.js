@@ -22,6 +22,10 @@ test('relay-only mode cannot silently run without TURN and invalid values do not
   assert.throws(() => iceConfiguration({ iceServers: [{ urls: 'turn:example.org', credential: 'SECRET' }] }), /username/);
   assert.throws(() => iceConfiguration({ iceServers: [{ urls: 'https://user:SECRET@example.org' }] }), error => !error.message.includes('SECRET'));
   assert.throws(() => iceConfiguration({ iceServers: Array(9).fill(turn) }), /eight/);
+  for (const port of [0, 65536]) {
+    assert.throws(() => iceConfiguration({ iceServers: [{ ...turn, urls: `turns:relay.example.org:${port}` }] }), /valid STUN or TURN/);
+  }
+  assert.deepEqual(iceConfiguration({ iceServers: [{ urls: 'stun:[2001:db8::1]:3478' }] }).iceServers[0].urls, ['stun:[2001:db8::1]:3478']);
   assert.deepEqual(iceConfiguration({ iceServers: [] }), { iceServers: [], iceTransportPolicy: 'all' });
 });
 

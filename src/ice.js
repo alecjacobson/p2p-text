@@ -1,4 +1,4 @@
-const iceUrl = /^(stun|stuns|turn|turns):(?:[a-z\d.-]+|\[[a-f\d:.]+\])(?::\d{1,5})?(?:\?transport=(udp|tcp))?$/i;
+const iceUrl = /^(stun|stuns|turn|turns):(?:[a-z\d.-]+|\[[a-f\d:.]+\])(?::(\d{1,5}))?(?:\?transport=(udp|tcp))?$/i;
 export const defaultStun = 'stun:stun.l.google.com:19302';
 
 export function iceConfiguration(input) {
@@ -9,7 +9,11 @@ export function iceConfiguration(input) {
   if (!['all', 'relay'].includes(policy)) throw new Error('ICE transport policy must be all or relay.');
   const iceServers = input.iceServers.map(server => {
     const urls = [server?.urls].flat();
-    if (!urls.length || urls.length > 8 || urls.some(url => typeof url !== 'string' || !iceUrl.test(url))) {
+    const invalidUrl = urls.some(url => {
+      const match = typeof url === 'string' && url.match(iceUrl);
+      return !match || (match[2] && (Number(match[2]) < 1 || Number(match[2]) > 65535));
+    });
+    if (!urls.length || urls.length > 8 || invalidUrl) {
       throw new Error('Each ICE server requires valid STUN or TURN URLs.');
     }
     if (!urls.some(url => /^turns?:/i.test(url))) return { urls };
