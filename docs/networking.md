@@ -51,6 +51,34 @@ WebRTC supports connections between different networks. STUN is enabled by defau
 
 Configure **TURN URL**, **TURN username**, and **TURN password** under **Network settings** on both clients before generating a fresh invite. A TURN service reachable over TCP/TLS, commonly `turns:relay.example.org:443?transport=tcp`, can work on networks that block direct UDP. A VPN or firewall can also block that service, so availability requires a real network test.
 
+A shared relay can supply the same ICE settings to both browsers, so collaborators only open the shared HTTPS page and exchange an invite.
+
+```sh
+npm run relay -- --ice-config /path/to/private/ice.json
+```
+
+```json
+{
+  "iceServers": [
+    { "urls": "stun:stun.l.google.com:19302" },
+    {
+      "urls": [
+        "turn:relay.example.org:3478?transport=udp",
+        "turns:relay.example.org:443?transport=tcp"
+      ],
+      "username": "temporary-user",
+      "credential": "temporary-password"
+    }
+  ],
+  "iceTransportPolicy": "all"
+}
+```
+
+The default `all` policy lets ICE select direct or TURN routes. To verify a TURN path, select **Use TURN for all peer traffic** before creating the invite, or set `iceTransportPolicy` to `relay` in the file. Relay-only mode requires authenticated TURN. Both peers need a reachable route, so enable the same settings on both for a controlled test.
+
+Hosted settings appear under **Use network settings from this host**. Uncheck that option to supply individual settings. The file is read at startup. Restart the relay and reload both pages after updating it. The values are delivered to every visitor of that relay and remain visible in the browser. Use a dedicated limited-quota TURN account or short-lived service credentials and keep the file outside Git. Credential issuance and renewal are the operator's responsibility. The app does not log the values or store them in local storage.
+
+
 In the observed failure on 2026-11-20, the Mac advertised a VPN interface address. With the VPN disconnected, Firefox on both machines connected directly on Wi-Fi. Chrome on the guest also had the managed `WebRtcIPHandling=default_public_interface_only` policy, suppressing private-address candidates. Fresh profiles inherit system policies. Administrators can inspect `chrome://policy` and scope approved WebRTC policies to the application origin. [Chromium policy definition](https://chromium.googlesource.com/chromium/src/+/main/components/policy/resources/templates/policy_definitions/WebRtc/WebRtcIPHandling.yaml)
 
 The connected UI shows whether ICE selected a direct or TURN route. Failed connections inspect ICE statistics even when server diagnostics are disabled and provide VPN, browser-policy, local-network-permission, and TURN recovery advice. A webpage cannot reliably identify a VPN or select a physical network interface. After changing networks, create a fresh invite so ICE gathers current candidates. Document text remains in browser storage after a connection fails. See the [live verification matrix](testing.md) for what has actually been tested.

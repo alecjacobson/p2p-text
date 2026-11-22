@@ -119,6 +119,7 @@ details { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 12
 summary { color: var(--muted); font-size: .875rem; }
 .ice { display: grid; gap: 5px; margin-top: 10px; }
 .ice input { width: 100%; padding: 6px 7px; margin-bottom: 4px; font-size: .875rem; }
+.ice .checkbox input { width: 16px; margin: 0; }
 .checkbox { display: flex; align-items: center; gap: 7px; font-size: .9rem; }
 .checkbox input { accent-color: var(--accent); width: 16px; height: 16px; }
 .card p.backup-status { font-size: .875rem; margin-bottom: 0; color: var(--accent-dark); }

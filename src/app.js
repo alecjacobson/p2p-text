@@ -1,5 +1,6 @@
 import { TextReplica, remapOffset, validDocumentId, validOperations } from './crdt.js';
 import { carryUpdates, encodeCode, gather, hasIceCandidates, makeOffer, readCode } from './peer.js';
+import { defaultStun, iceConfiguration } from './ice.js';
 import { IdleBackup } from './backup.js';
 import { callRelay, inviteFromFragment, isLoopbackHost, relayEndpoint, shareableJoinLink, shortCode } from './relay.js';
 import { browserFamily, connectionFailure, connectionRoute, descriptionCandidates, diagnosticAttempt, reportIceStats, watchConnection } from './rtc-diagnostics.js';
@@ -10,6 +11,18 @@ const editor = byId('editor');
 const docs = byId('documents');
 const relayField = byId('relay-url');
 const defaultRelay = document.querySelector('meta[name="short-overleaf-relay"]')?.content;
+const hostedIceMeta = document.querySelector('meta[name="short-overleaf-ice"]')?.content;
+const hostedIce = hostedIceMeta ? iceConfiguration(JSON.parse(decodeURIComponent(hostedIceMeta))) : undefined;
+byId('stun-url').value = defaultStun;
+byId('hosted-ice-toggle').hidden = !hostedIce;
+byId('use-hosted-ice').checked = Boolean(hostedIce);
+byId('turn-only').checked = hostedIce?.iceTransportPolicy === 'relay';
+function showIceSettings() {
+  const hosted = hostedIce && byId('use-hosted-ice').checked;
+  for (const id of ['stun-url', 'turn-url', 'turn-user', 'turn-key']) byId(id).disabled = Boolean(hosted);
+}
+byId('use-hosted-ice').addEventListener('change', showIceSettings);
+showIceSettings();
 const debugEndpoint = document.querySelector('meta[name="short-overleaf-diagnostics"]')?.content;
 if (defaultRelay) relayField.value = new URL(defaultRelay, location.href).href;
 const peerId = crypto.randomUUID();
@@ -276,7 +289,9 @@ function renderPairing() {
   byId('connection-label').textContent = count ? `${count} ${count === 1 ? 'peer' : 'peers'} connected` : 'Working solo';
   const routes = [...new Set([...links.values()].filter(link => link.open).map(link => link.route).filter(Boolean))];
   byId('network-status').hidden = !routes.length;
-  byId('network-status').textContent = routes.length ? `WebRTC route through ${routes.join(' and ')} connections.` : '';
+  byId('network-status').textContent = routes.length > 1
+    ? 'WebRTC connections use direct and TURN routes.'
+    : routes[0] === 'direct' ? 'Direct WebRTC connection.' : 'WebRTC connection through TURN.';
 }
 
 function cancelPairing() {
@@ -355,18 +370,20 @@ function createLink(documentId, report) {
   const turn = byId('turn-url').value.trim();
   if (stun) servers.push({ urls: stun });
   if (turn) servers.push({ urls: turn, username: byId('turn-user').value, credential: byId('turn-key').value });
-  const iceServers = diagnosticTask?.ice ?? servers;
-  const urls = iceServers.flatMap(entry => entry.urls);
+  const configuration = iceConfiguration({
+    iceServers: diagnosticTask?.ice ?? (byId('use-hosted-ice').checked && hostedIce ? hostedIce.iceServers : servers),
+    iceTransportPolicy: diagnosticTask
+      ? diagnosticTask.mode === 'turn' ? 'relay' : 'all'
+      : byId('turn-only').checked ? 'relay' : 'all'
+  });
+  const urls = configuration.iceServers.flatMap(entry => entry.urls);
   report?.('configured', {
     stun: urls.some(url => url.startsWith('stun')),
     turn: urls.some(url => url.startsWith('turn')),
     browser: browserFamily(navigator.userAgent)
   });
   const testGuest = diagnosticTask?.role === 'join';
-  const connection = new RTCPeerConnection({
-    iceServers,
-    iceTransportPolicy: diagnosticTask?.mode === 'turn' ? 'relay' : 'all'
-  });
+  const connection = new RTCPeerConnection(configuration);
   const link = { open: false, timer: undefined, send: undefined, report };
   links.set(connection, link);
   watchConnection(connection, report);

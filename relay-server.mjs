@@ -2,6 +2,8 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { loadIceConfiguration } from './ice-config.mjs';
+import { iceMetadata } from './src/ice.js';
 import { diagnosticFile, startDiagnostics } from './diagnostics.mjs';
 import { stationHandler } from './debug-stations.mjs';
 import { SignalMailbox, signalHandler } from './signal.mjs';
@@ -10,18 +12,21 @@ const { values } = parseArgs({
   options: {
     host: { type: 'string', default: '127.0.0.1' },
     port: { type: 'string', default: '8787' },
-    debug: { type: 'boolean', default: false }
+    debug: { type: 'boolean', default: false },
+    'ice-config': { type: 'string' }
   }
 });
 const port = Number(values.port);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid --port.');
+const ice = await loadIceConfiguration(values['ice-config']);
 const diagnostics = values.debug ? await startDiagnostics() : undefined;
-const metadata = '<meta name="short-overleaf-relay" content="/api/signal">' +
+const metadata = iceMetadata(ice) + '<meta name="short-overleaf-relay" content="/api/signal">' +
   (diagnostics ? '<meta name="short-overleaf-diagnostics" content="/api/diagnostics">' : '');
 const app = (await readFile(new URL('./dist/index.html', import.meta.url), 'utf8'))
   .replace('</head>', metadata + '</head>');
 const handleSignal = signalHandler(new SignalMailbox(diagnostics?.write));
-const handleStation = diagnostics && stationHandler(diagnostics.write);
+const turnServers = ice?.iceServers.filter(server => server.urls.some(url => /^turns?:/i.test(url)));
+const handleStation = diagnostics && stationHandler(diagnostics.write, turnServers?.length ? turnServers : undefined);
 
 const server = createServer({ requestTimeout: 10000 }, (request, response) => {
   if (request.url === '/api/signal') return handleSignal(request, response);
