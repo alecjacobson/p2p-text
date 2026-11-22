@@ -33,9 +33,14 @@ cloudflared tunnel --url http://127.0.0.1:8787
 
 Both browsers open the printed HTTPS URL. The tunnel publishes the page and carries signaling. It does not turn an unreachable WebRTC candidate into a usable data route. The source has no Cloudflare SDK, discovery logic, or required Cloudflare service.
 
-## Manual pairing with independent local clients
+## Manual pairing over the internet
+
+The computers can be on different internet networks. Each person runs the app on their own computer. The `localhost` address below refers to that person's computer, and the codes are exchanged through an existing private communication channel.
+
+On each computer, clone the repository, enter its directory, and run the following.
 
 ```sh
+npm ci
 npm start
 ```
 
@@ -43,7 +48,7 @@ Each peer opens their own <http://127.0.0.1:4173>. Leave **Signaling endpoint** 
 
 Alternatively, `npm run build` produces a self-contained `dist/index.html` that can be served by a static HTTPS host. File URLs work in browsers that expose the required WebRTC, storage, and secure-context APIs there. Localhost or HTTPS is the reproducible launch path.
 
-Manual signaling works over an existing private communication channel and needs no app signaling server. The full codes contain SDP and can be long. Six-character codes need a shared rendezvous service because six characters cannot encode all connection parameters.
+Manual signaling works over an existing private communication channel and needs no app signaling server. After pairing, edits travel over WebRTC between the computers. STUN is enabled by default. If the networks require TURN, each person configures the TURN URL and credentials in **Network settings** before generating the invite or reply. The full codes contain SDP and can be long. Six-character codes need a shared rendezvous service because six characters cannot encode all connection parameters.
 
 ## Internet connections, VPNs, and browser policy
 

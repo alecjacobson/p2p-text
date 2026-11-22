@@ -58,9 +58,22 @@ Both browsers receive these settings automatically. `all` allows ICE to select d
 
 Direct LAN editing is verified. Independent-network and live VPN/TURN verification remains tracked in [issue #4](https://github.com/alecjacobson/p2p-text/issues/4).
 
-## Manual pairing and local development
+## Manual pairing over the internet
 
-For pairing through full invite/reply codes, each person runs `npm ci` and `npm start`, opens their own <http://127.0.0.1:4173>, and exchanges the codes privately. This mode uses the same WebRTC connection rules. See [manual pairing](docs/networking.md#manual-pairing-with-independent-local-clients).
+The two computers can be on different networks. Each person runs their own copy of the app. Here, `localhost` means the computer running that person's browser.
+
+On **each computer**, clone this repository, enter its directory, and run the following.
+
+```sh
+npm ci
+npm start
+```
+
+Each person opens <http://127.0.0.1:4173> on their own computer and leaves **Signaling endpoint** blank. The first person generates a full invite code and sends it privately to the second person. The second person pastes it under **Join**, creates a reply code, and sends that reply back. The first person pastes the reply to finish pairing.
+
+The exchanged codes carry the handshake, so this mode works without a shared app signaling server. Editing still uses WebRTC over the internet. STUN is enabled by default, and restrictive networks may need TURN configured in **Network settings** on both browsers before pairing. See [manual pairing details](docs/networking.md#manual-pairing-over-the-internet).
+
+## Local testing
 
 For a one-machine test, run `npm run relay` and open <http://127.0.0.1:8787> in two browser profiles.
 
