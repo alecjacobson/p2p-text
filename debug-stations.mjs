@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { directory, debugJsonHandler } from './diagnostics.mjs';
 import { diagnosticAttempt } from './src/rtc-diagnostics.js';
+import { iceConfiguration } from './src/ice.js';
 import { isLoopbackHost, shortCode } from './src/relay.js';
 
 export const stationFile = new URL('stations.json', directory);
@@ -18,14 +19,8 @@ export function newRun(mode) {
 }
 
 export function configuredTurn(input) {
-  const servers = Array.isArray(input) ? input : input?.iceServers;
-  if (!Array.isArray(servers)) throw new Error('Expected an iceServers list.');
-  const turn = servers.flatMap(server => {
-    if (!server || typeof server.username !== 'string' || !server.username ||
-        typeof server.credential !== 'string' || !server.credential) return [];
-    const urls = [server.urls].flat().filter(url => typeof url === 'string' && /^turns?:[^\s]+$/.test(url));
-    return urls.length ? [{ urls, username: server.username, credential: server.credential }] : [];
-  });
+  const { iceServers } = iceConfiguration(Array.isArray(input) ? { iceServers: input } : input);
+  const turn = iceServers.filter(server => server.urls.some(url => /^turns?:/i.test(url)));
   if (!turn.length) throw new Error('Expected at least one authenticated TURN server.');
   return turn;
 }

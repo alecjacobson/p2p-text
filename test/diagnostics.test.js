@@ -112,7 +112,7 @@ test('two opted-in stations exchange a fresh TURN test invite without logging cr
 test('debug runs accept private TURN configuration in normal iceServers format', () => {
   const turn = { urls: ['turns:relay.example.net:443?transport=tcp'], username: 'user', credential: 'test' };
   assert.deepEqual(configuredTurn({ iceServers: [{ urls: 'stun:stun.example.net' }, turn] }), [turn]);
-  assert.throws(() => configuredTurn([{ urls: 'turn:relay.example.net' }]), /authenticated TURN/);
+  assert.throws(() => configuredTurn([{ urls: 'turn:relay.example.net' }]), /username and password/);
 });
 
 test('normal connections inspect ICE without enabling server diagnostics', async () => {

@@ -38,7 +38,7 @@ For a forced TURN test, save your own authenticated service configuration in `.p
 }
 ```
 
-There is no default public TURN provider. Test commands expire after ten minutes. The private control files and logs are ignored by Git. `SHORT_OVERLEAF_DEBUG_PROFILE=name` isolates files in `.p2p-debug/name/` and must be set for both relay and control commands.
+The shared relay can use the same file with `npm run debug -- --ice-config .p2p-debug/ice.json`. There is no default public TURN provider. Test commands expire after ten minutes. The private control files and logs are ignored by Git. `SHORT_OVERLEAF_DEBUG_PROFILE=name` isolates files in `.p2p-debug/name/` and must be set for both relay and control commands.
 
 ## Evidence
 
@@ -60,6 +60,8 @@ Logs contain candidate types, state transitions, and abbreviated random attempt 
 | Same Wi-Fi, explicit local coturn relay | Passed, selected `relay → relay`, private greeting verified |
 | Independent internet networks, direct | Pending [issue #4](https://github.com/alecjacobson/p2p-text/issues/4) |
 | Independent internet networks or VPN with public TURN | Pending [issue #4](https://github.com/alecjacobson/p2p-text/issues/4) |
+
+A subsequent local build check used Firefox and Chrome with hosted ICE settings, STUN/TURN disabled, and no SSH or tunnel. The guest verified the random greeting, edits synchronized in both directions, and a further edit arrived after the signaling process was stopped. A second check with debug mode disabled used ordinary six-character pairing between normal and private browser sessions and delivered the editor text through a direct route. These checks verify the normal entry point and signaling independence on one machine. It adds no independent-network coverage.
 
 The live trials used regular installed browsers. No automated Chrome process or browser restart is required for the portable station tests. SSH forwarding, HTTPS hosting, and optional tunnels carry only signaling and diagnostics.
 
